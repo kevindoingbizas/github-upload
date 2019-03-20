@@ -1,0 +1,150 @@
+---
+# tasks file for lockdown-ocp
+- name: 1.1 Audit system:anonymous role
+  shell: oc get clusterrolebindings --config=/etc/origin/master/admin.kubeconfig | grep system:anonymous
+  register: crb
+  failed_when: crb.rc == 0
+
+- debug:
+    var: crb
+
+- name: 1.1 Audit system:unauthenticated role
+  shell: oc get clusterrolebindings --config=/etc/origin/master/admin.kubeconfig | grep system:anonymous
+  register: crb
+  failed_when: crb.rc == 0
+
+- debug:
+    var: crb
+
+- name:  1.1 verify that the API server maps anonymous requests to the ‘system:unauthenticated’ group
+  shell: curl -kv https://masters.ocp-sbx-int.pheaacloud.org/api/v1/service
+  register: api_curl
+  failed_when: "'forbidden' not in api_curl.stdout"
+
+- name: 1.2 Ensure basic-auth-file option is not configured
+  command: grep -A1 basic-auth-file /home/ec2-user/working/master-config.yaml
+  ignore_errors: yes
+  register: bauth
+  failed_when: bauth.rc == 0
+
+- debug:
+    var: bauth
+
+
+- name: 1.2 Remove basic-auth-file lines from file if exists
+  lineinfile:
+    dest: /home/ec2-user/working/master-config.yaml
+    regexp: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ bauth.stdout_lines }}"
+  when: "'basic-auth-file' in bauth.stdout"
+  register: line
+
+- debug:
+    var: line
+
+- name: 1.4 Ensure that the OpenShift administrator has not changed the default values
+  command: grep -A4 kubeletClientInfo /etc/origin/master/master-config.yaml
+  register: kci
+  failed_when: kci.rc == 1
+
+- name: 1.5 Ensure that the OpenShift administrator has not enabled the insecure-bind-address in the master-config file
+  command: grep -A1 insecure-bind-address /home/ec2-user/working/master-config.yaml
+  register: iba
+  ignore_errors: yes
+  failed_when: iba.rc == 0
+
+- debug:
+    var: iba
+
+
+- name: 1.5 Remove insecure-bind-address lines from file if exists
+  lineinfile:
+    dest: /home/ec2-user/working/master-config.yaml
+    regexp: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ iba.stdout_lines }}"
+  when: "'insecure-bind-address' in iba.stdout"
+  register: line
+
+- debug:
+    var: line
+
+- name: 1.6 Ensure that the OpenShift administrator has not enabled the insecure-port configuration in the master-config file
+  command: grep -A1 insecure-port /home/ec2-user/working/master-config.yaml
+  register: isp
+  ignore_errors: yes
+  failed_when: isp.rc == 0
+
+- debug:
+    var: isp
+
+
+- name: 1.6 Remove insecure-port lines from file if exists
+  lineinfile:
+    dest: /home/ec2-user/working/master-config.yaml
+    regexp: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ isp.stdout_lines }}"
+  when: "'insecure-port' in isp.stdout"
+  register: line
+
+- debug:
+    var: line
+
+- name: 1.7 Ensure that the OpenShift administrator has not removed any necessary fields, and has not attempted to disable the secure-port.
+  command: grep -A1 secure-port /home/ec2-user/working/master-config.yaml
+  register: sprt
+  ignore_errors: yes
+
+- debug:
+    var: sprt
+
+- name: 1.7 Remove secure-port(default setting) lines from file if exists
+  lineinfile:
+    dest: /home/ec2-user/working/master-config.yaml
+    regexp: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ sprt.stdout_lines }}"
+  when: "'secure-port' in sprt.stdout"
+  register: line
+
+- debug:
+    var: line
+
+- name: 1.8 Ensure OPENSHIFT_PROFILE is not set to web
+  command: grep OPENSHIFT_PROFILE /home/ec2-user/working/master.env
+  register: opw
+  ignore_errors: yes
+
+- debug:
+    var: opw.stdout
+
+- name: 1.8 Remove OPENSHIFT_PROFILE if it is equal to web
+  lineinfile:
+    dest: /home/ec2-user/working/master.env
+    regexp: '^OPENSHIFT_PROFILE'
+    state: absent
+  when: "'web' in opw.stdout"
+  ignore_errors: yes
+
+- name: Ensure that the admission control policy is not set to AlwaysAdmit
+  command: grep -A4 AlwaysAdmit /home/ec2-user/working/master-config.yaml
+  register: aladt
+  ignore_errors: yes
+
+- debug:
+    var: aladt
+  
+#- name: 1.10 Remove AlwaysAdmit lines from file if exists
+#  lineinfile:
+#    dest: /home/ec2-user/working/master-config.yaml
+#    regexp: "{{ item }}"
+#    state: absent
+#  with_items:
+#    - "{{ aladt.stdout_lines }}"
+#  when: "'AlwaysAdmit' in aladt.stdout"

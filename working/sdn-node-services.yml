@@ -1,0 +1,12 @@
+---
+- hosts: OSEv3
+  tasks:
+    - command: oc login -u system:admin --config="{{ kube_conf }}"
+      delegate_to: masters[0]
+
+    - command: systemctl stop atomic-openshift-node.service
+
+    - command: oc delete pod --all -n openshift-sdn
+      delegate_to: masters[0]
+
+    - command: systemctl restart atomic-openshift-node.service

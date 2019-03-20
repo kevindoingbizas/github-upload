@@ -1,0 +1,13 @@
+---
+- name: Restart Master API and Controllers
+  hosts: masters
+  tasks:
+    - name: Restart Master API
+      command: /usr/local/bin/master-restart api
+      register: mra
+      failed_when: mra.rc != 0
+
+    - name: Restart Master Controllers
+      command: /usr/local/bin/master-restart controllers
+      register: mrc
+      failed_when: mrc.rc != 0

@@ -1,0 +1,10 @@
+oc extract cm/node-config-compute -n openshift-node --to={{ temp_dir.path }}
+
+oc create configmap node-config-compute-update --from-file {{ cm_path.stdout }} -n openshift-node
+
+oc delete configmap node-config-compute -n openshift-node
+
+oc create configmap node-config-compute --from-file {{ cm_path.stdout }} -n openshift-node
+
+oc delete configmap node-config-compute-update -n openshift-node
+

@@ -1,0 +1,16 @@
+---
+- name: Manage OCP services for networkpolicy change
+  hosts: OSEv3
+  tasks:
+    - name: Stop node service
+      command: systemctl stop atomic-openshift-node.service
+      when: "'masters' in group_names"
+
+    - name: Delete old sdn pods
+      shell: oc delete po --all -n openshift-sdn --config=/etc/origin/master/admin-kubeconfig
+      delegate_to: localhost
+
+
+    - name: Restart node service
+      command: systemctl restart atomic-openshift-node.service
+      when: "'masters' in group_names"

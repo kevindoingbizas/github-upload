@@ -1,0 +1,110 @@
+[OSEv3:children]
+masters
+infra
+nodes
+etcd
+glusterfs
+
+# Set variables common for all OSEv3 hosts
+[OSEv3:vars]
+ansible_user=ec2-user
+ansible_become=yes
+openshift_deployment_type=openshift-enterprise
+openshift_release=v3.11
+openshift_master_api_port=443
+openshift_master_console_port=443
+
+openshift_master_identity_providers=[{'name': 'htpasswd_auth', 'login': 'true', 'challenge': 'true', 'kind': 'HTPasswdPasswordIdentityProvider'},
+				     {'name': 'awsdev', 'login': 'true', 'challenge': 'true', 'kind': 'LDAPPasswordIdentityProvider', 'attributes': {'id': ['objectGUID'], 'email': ['mail'], 'name': ['name'], 'preferredUsername': ['cn']}, 'bindDN': 'ocpldap@awsdev.pheaa.org', 'bindPassword': 'ocpld@p123', 'insecure': 'true', 'url': 'ldap://10.203.6.78/DC=awsdev,DC=pheaa,DC=org?cn'}]
+openshift_master_htpasswd_file=/opt/ansible/htpasswd
+
+openshift_metrics_install_metrics=true
+openshift_metrics_cassandra_storage_type=dynamic
+openshift_metrics_server_install=true
+
+openshift_logging_install_logging=true
+openshift_logging_es_pvc_dynamic=true
+openshift_logging_es_nodeselector={"node-role.kubernetes.io/infra":"true"}
+
+openshift_cluster_monitoring_operator_prometheus_storage_enabled=true
+openshift_cluster_monitoring_operator_alertmanager_storage_enabled=true
+
+oreg_auth_user='7713807|ansible-inventory-token'
+oreg_auth_password='eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiI5NDE5ZTBlNmIxMWI0ZmQ2OWExNDhhYjE1ZjI4YjJjZSJ9.anyG-N5EAakaVHmq9c1WukPity8RhaDTlkpnAR_4dN9JQ-5_bEpjTRQ1tP_qmm7zZz8aU1wgG8F_bEpnkbsRx2KUPsE1nw8wOaUWoJR2iu7wDLmA0I5sbUTdgzOcahXsls1Vf-wtL-r7mnK96WI_JjO4t3wI8q16kCuyBqRQn8V0O5Nti8zf3ZoGmVHi9rBCaTJHDIjBgXDp0GEjGJpiuH19HbdzwyknjX-JaafOFEo9f6Soj7RyZ7UO5WmBXK4f_r2JAn3IPErmRr7wNLQKAijqw5Ztnisw4rdrZaqS4LT6V6LQDWc9CfAUZ609-wkjfk2qNhep4HRlGOccXsB0v400hMKCI-FPiosZWbi-H9v3yShMgJtSI40hWa4OTKnZ5aPoXQpiApBosn3sSpoHprbDCHMIk4d4mz6tStku9FeCuvkuYZfQM8dkkFTwUmSRkmfgyvuSscWkpO8wNYGHuqFSVA7tpXOTJvk02Jyai4wJKCs9P43q3bImf25cVjgpzMQsEOiI8rqEu_JAt-lyoB-L-xv74mTxiT4owlPRQ9JgZZQD0RbYq1E9s-oHIfR_g5A4ZbHwzajghToWc1MsT0NM4UZ5eGmHzs6Rv7fm8tJAyW0uLaPwurS6cm5Tb5auDL0W_Ih91FNwpo-rABzuKkqw2GUPlyso0auI-LuLhP0'
+
+# Gluster Storage
+openshift_storage_glusterfs_namespace=gluster-storage
+openshift_storage_glusterfs_storageclass=true
+openshift_storage_glusterfs_storageclass_default=false
+openshift_storage_glusterfs_block_deploy=true
+openshift_storage_glusterfs_block_host_vol_size=50
+openshift_storage_glusterfs_block_storageclass=true
+openshift_storage_glusterfs_block_storageclass_default=false
+openshift_storage_glusterfs_wipe=true
+
+# Native high availability cluster method with optional load balancer.
+# If no lb group is defined installer assumes that a load balancer has
+# been preconfigured. For installation the value of
+# openshift_master_cluster_hostname must resolve to the load balancer
+# or to one or all of the masters defined in the inventory if no load
+# balancer is present.
+openshift_master_cluster_method=native
+openshift_master_default_subdomain=ocp-sbx-int.pheaacloud.org
+openshift_master_cluster_hostname=masters.ocp-sbx-int.pheaacloud.org
+openshift_master_cluster_public_hostname=masters.ocp-sbx-int.pheaacloud.org
+
+# AWS Specific variables
+openshift_cloudprovider_kind=aws
+openshift_clusterid=ocp-sbx-int 
+openshift_cloudprovider_aws_access_key=AKIAJ3JBV6HK2RZVQ6JA
+openshift_cloudprovider_aws_secret_key=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
+openshift_master_bootstrap_auto_approve=true
+
+openshift_hosted_registry_storage_kind=object
+openshift_hosted_registry_storage_provider=s3
+openshift_hosted_registry_storage_s3_accesskey=AKIAJ3JBV6HK2RZVQ6JA
+openshift_hosted_registry_storage_s3_secretkey=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
+openshift_hosted_registry_storage_s3_bucket=pheaa-sandbox-openshift
+openshift_hosted_registry_storage_s3_region=us-east-1
+openshift_hosted_registry_storage_s3_chunksize=26214400
+openshift_hosted_registry_storage_s3_rootdirectory=/registry
+openshift_hosted_registry_pullthrough=true
+openshift_hosted_registry_acceptschema2=true
+openshift_hosted_registry_enforcequota=true
+
+openshift_hosted_registry_routehost=registry.ocp-sbx-int.pheaacloud.org
+openshift_hosted_registry_routetermination=passthrough
+
+# host group for masters
+[masters]
+ip-172-24-4-90.ec2.internal openshift_node_group_name='node-config-master' 
+ip-172-24-4-21.ec2.internal openshift_node_group_name='node-config-master' 
+ip-172-24-4-131.ec2.internal openshift_node_group_name='node-config-master' 
+
+# host group for etcd
+[etcd]
+
+[etcd:children]
+masters
+
+[infra]
+ip-172-24-4-138.ec2.internal openshift_node_group_name='node-config-infra'
+ip-172-24-4-9.ec2.internal openshift_node_group_name='node-config-infra'
+ip-172-24-4-73.ec2.internal openshift_node_group_name='node-config-infra'
+
+# host group for nodes, includes openshift node group info
+[nodes]
+ip-172-24-4-36.ec2.internal openshift_node_group_name='node-config-compute' 
+ip-172-24-4-87.ec2.internal openshift_node_group_name='node-config-compute' 
+ip-172-24-4-156.ec2.internal openshift_node_group_name='node-config-compute' 
+
+[nodes:children]
+masters
+infra
+
+# Gluster Storage
+[glusterfs]
+ip-172-24-4-9.ec2.internal glusterfs_devices='[ "/dev/nvme1n1" ]'
+ip-172-24-4-73.ec2.internal glusterfs_devices='[ "/dev/nvme1n1" ]'
+ip-172-24-4-138.ec2.internal glusterfs_devices='[ "/dev/nvme1n1" ]'
+

@@ -1,0 +1,32 @@
+---
+- name: Run Hardening Steps
+  hosts: masters
+  pre_tasks:
+    - name: Back up master config file
+      copy:
+        src: /etc/origin/master/master-config.yaml
+        dest: /etc/origin/master/master-config{{ ansible_date_time.date }}-{{ ansible_date_time.time }}.yaml.tmp
+        remote_src: yes
+    - name: Back up master.env file
+      copy:
+        src: /etc/origin/master/master.env
+        dest: /etc/origin/master/master.env{{ ansible_date_time.date }}-{{ ansible_date_time.time }}.tmp
+        remote_src: yes
+  roles: 
+    - lockdown-ocp
+
+## Only enable the following if nettworkpolicy was not set during install
+#- import_playbook: sdn-masterconfig.yml
+#- import_playbook: sdn-configmap.yml
+#- import_playbook: sdn-services.yml
+#- import_playbook: sdn-node-services.yml
+
+- name: Modify configuration files
+  hosts: all
+  roles:
+    - configuration-files-all-nodes
+
+- name: Secure worker nodes
+  hosts: masters[0]
+  roles: 
+    - secure-worker-nodes

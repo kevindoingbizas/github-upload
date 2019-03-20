@@ -1,0 +1,10 @@
+---
+- name: SDN NetworkPolicy Adjustment on Masters
+  hosts: masters
+  roles:
+    - include_playbook: sdn-masterconfig.yml
+
+- name: SDN NetworkPolicy Adjustment to configmaps
+  hosts: masters[0]
+  tasks:
+    - include_playbook: sdn-configmap.yml

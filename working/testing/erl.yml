@@ -1,0 +1,17 @@
+---
+- name: Add yaml to file
+  hosts: localhost
+  tasks:
+    - name: inject yaml
+      yedit:
+        src: /home/ec2-user/openshift/working/master-config.yaml
+        key: EventRateLimit
+        #key: admissionConfig.pluginConfig.EventRateLimit.configuration
+        #key: admissionConfig.pluginConfig.EventRateLimit.configuration.kind
+        #key: admissionConfig.pluginConfig.EventRateLimit.configuration.apiVersion
+        #key: admissionConfig.pluginConfig.EventRateLimit.configuration.disable
+        state: absent
+      register: erl
+
+    - debug:
+        var: erl

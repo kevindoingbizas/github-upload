@@ -1,0 +1,163 @@
+- name: Remove blocks of unsecure YAML
+  yedit:
+    src: /home/ec2-user/working/master-config.yaml
+    key: admissionConfig.pluginConfig.NodeRestriction
+    key: admissionConfig.pluginConfig.PodSecurityPolicy
+    key: admissionConfig.pluginConfig.ServiceAccount
+    key: admissionConfig.pluginConfig.ServiceAccount
+    state: absent
+
+- name: Removing unsecure features and plugins
+  yedit:
+    src: /home/ec2-user/working/master-config.yaml
+    key: kubernetesMasterConfig.apiServerArguments.basic-auth-file
+    key: kubernetesMasterConfig.apiServerArguments.insecure-bind-address
+    key: kubernetesMasterConfig.apiServerArguments.insecure-port
+    key: kubernetesMasterConfig.apiServerArguments.secure-port
+    key: kubernetesMasterConfig.apiServerArguments.profiling
+    key: kubernetesMasterConfig.apiServerArguments.AlwaysAdmit
+    key: kubernetesMasterConfig.apiServerArguments.NamespaceLifecycle
+    key: kubernetesMasterConfig.apiServerArguments.authorization-mode
+    key: kubernetesMasterConfig.apiServerArguments.token-auth-file
+    key: kubernetesMasterConfig.apiServerArguments.kubelet-certifcate-authority
+    key: kubernetesMasterConfig.apiServerArguments.kubelet-client-certificate
+    key: kubernetesMasterConfig.apiServerArguments.kubelet-client-key
+    key: kubernetesMasterConfig.apiServerArguments.service-account-lookup
+    key: kubernetesMasterConfig.apiServerArguments.service-account-key-file
+    key: kubernetesMasterConfig.apiServerArguments.etcd-keyfile
+    key: kubernetesMasterConfig.apiServerArguments.etcd-certfile
+    key: kubernetesMasterConfig.apiServerArguments.tls-cert-file
+    key: kubernetesMasterConfig.apiServerArguments.tls-private-key-file
+    key: kubernetesMasterConfig.apiServerArguments.client-ca-file
+    key: kubernetesMasterConfig.apiServerArguments.etcd-cafile
+    key: kubernetesMasterConfig.apiServerArguments.authorization-mode
+    key: kubernetesMasterConfig.schedulerArguments.profiling
+    key: kubernetesMasterConfig.controllerArguments.service-account-private-key-file
+    state: absent
+
+- name: 1.8 Ensure OPENSHIFT_PROFILE is not set to web
+  command: grep OPENSHIFT_PROFILE /home/ec2-user/working/master.env
+  register: opw
+  ignore_errors: yes
+
+- name: 1.8 Remove OPENSHIFT_PROFILE if it is equal to web
+  lineinfile:
+    dest: /home/ec2-user/working/master.env
+    regexp: '^OPENSHIFT_PROFILE'
+    state: absent
+  when: "'web' in opw.stdout"
+  ignore_errors: yes
+
+- name: Verify if auditConfig exists
+  command: grep -A5 auditConfig /home/ec2-user/working/master-config.yaml
+  ignore_errors: yes
+  register: ac
+
+- name: 1.15 Add audit config if not present in config
+  lineinfile:
+    path: /home/ec2-user/working/master-config.yaml
+    line: "{{ item }}"
+    insertbefore: '^authConfig'
+  with_items:
+    - 'auditConfig:'
+    - '  auditFilePath: "/var/log/audit-ocp.log"'
+    - '  enabled: true'
+    - '  maximumFileRetentionDays: 30'
+    - '  maximumFileSizeMegabytes: 10'
+    - '  maximumRetainedFiles: 10'
+  when: "'auditConfig' not in ac.stdout"
+
+
+- name: Is AlwaysPullImages set in config
+  command: grep -A4 AlwaysPullImages /home/ec2-user/working/master-config.yaml
+  register: alpi
+  ignore_errors: yes
+
+- name: If AlwaysPullImages exists ensure it is not disabled
+  yedit:
+    src: /home/ec2-user/working/master-config.yaml
+    key: admissionConfig.pluginConfig.AlwaysPullImages.configuration.kind.apiVersion.disable
+    value: 'false'
+  when: "'true' in alpi.stdout"
+
+- name: Is DenyEscalatingExec set in config
+  command: grep -A4 DenyEscalatingExec /home/ec2-user/working/master-config.yaml
+  register: dee
+  ignore_errors: yes
+
+- name: If DenyEscalatingExec exists ensure it is not disabled
+  yedit:
+    src: /home/ec2-user/working/master-config.yaml
+    key: admissionConfig.pluginConfig.DenyEscalatingExec.configuration.kind.apiVersion.disable
+    value: 'false'
+  when: "'true' in dee.stdout"
+
+- name: Is SecurityContextDeny set in config
+  command: grep -A4 SecurityContextDeny /home/ec2-user/working/master-config.yaml
+  register: scd
+  ignore_errors: yes
+
+- name: If SecurityContextDeny exists ensure it is not disabled
+  yedit:
+    src: /home/ec2-user/working/master-config.yaml
+    key: admissionConfig.pluginConfig.SecurityContextDeny.configuration.kind.apiVersion.disable
+    value: 'false'
+  when: "'true' in scd.stdout"
+    
+
+- name: Adding security features and plugins
+  yedit:
+    src: /home/ec2-user/working/master-config.yaml
+    edits:
+    - key: kubernetesMasterConfig.apiServerArguments.feature-gates
+      value: '- AdvancedAuditing=true'
+    - key: kubernetesMasterConfig.apiServerArguments.request-timeout
+      value: '- 300'
+    - key: kubernetesMasterConfig.controllerArguments.repair-malformed-updates
+      value: "- repair-malformed-updates=true"
+    - key: kubernetesMasterConfig.controllerArguments.experimental-encryption-provider-config
+      value: "- /etc/origin/master/encryption-config.yaml"
+    - key: kubernetesMasterConfig.controllerArguments.terminated-pod-gc-threshold
+      value: '- true'
+    - key: kubernetesMasterConfig.controllerArguments.use-service-account-credentials
+      value: '- true'
+    state: present
+
+- name: 1.33 verify encryption-config exists
+  stat:
+    path: /home/ec2-user/working/encryption-config.yaml
+  register: ecnc
+
+- name: 1.33 Create encryption-config secret
+  shell: head -c 32 /dev/urandom | base64
+  register: aes
+  when: ecnc.stat.exists == false
+
+- set_fact:
+  gensec: "{{ aes.stdout }}"
+
+- name: 1.33 Generate encryption-config
+  template:
+    src: encryption-config.j2
+    dest:  "{{ encryption_config }}"
+  when: ecnc.stat.exists == false
+
+- name: 1.35 Ensure EventRateLimit admission plugin is enabled
+  command: grep -A4 EventRateLimit /home/ec2-user/working/master-config.yaml
+  register: erl
+  ignore_errors: yes
+
+- name: 1.35 Add EventRateLimit
+  lineinfile:
+    dest: /home/ec2-user/working/master-config.yaml
+    line: "{{ item }}"
+    state: present
+    insertafter: '.pluginConfig'
+  with_items:
+    - '        disable: false'
+    - '        apiVersion: v1'
+    - '        kind: DefaultAdmissionConfig'
+    - '      configuration:'
+    - '    EventRateLimit:'
+  when: "'EventRateLimit' not in erl.stdout"
+

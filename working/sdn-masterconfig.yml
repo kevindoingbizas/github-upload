@@ -1,0 +1,16 @@
+---
+- name: Configure MasterConfigs for NetworkPolicy
+  hosts: masters
+  tasks:
+    - command: oc logion -u ocpadmin --config="{{ kube_conf }}"
+
+    - command: oc get clusternetwork
+      register: clsnet
+
+    - name: Change SDN to NetworkPolicy
+      yedit:
+        src: /etc/origin/master/master-config.yaml
+        key: networkConfig.networkPluginName 
+        value: redhat/openshift-ovs-networkpolicy
+      state: present
+      when: "'networkpolicy' not in clsnet.stdout"

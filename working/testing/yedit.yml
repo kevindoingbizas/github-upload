@@ -1,0 +1,20 @@
+---
+- name: test yedit
+  hosts: localhost
+  tasks:
+    - name: testing
+      yedit:
+        src: /home/ec2-user/working/master-config.yaml
+        key: admissionConfig.pluginConfig.NodeRestriction
+        key: admissionConfig.pluginConfig.ServiceAccount
+        state: absent
+
+    - name: more
+      yedit:
+        src: /home/ec2-user/working/master-config.yaml
+        edits:
+        - key: kubernetesMasterConfig.apiServerArguments.feature-gates
+          value: '- AdvancedAuditing=true'
+        - key: kubernetesMasterConfig.controllerArguments.experimental-encryption-provider-config
+          value: "- /etc/origin/master/encryption-config.yaml"
+        state: present
